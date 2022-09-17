@@ -1,4 +1,4 @@
-namespace TimeMonitor
+namespace TimeMonitorSharp
 {
     using System;
     using System.Text;
