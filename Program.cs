@@ -1,4 +1,4 @@
-namespace TimeMonitorSharp
+namespace TimeMonitorInvisibleAdminConsole
 {
     using Microsoft.Win32;
     using System;
