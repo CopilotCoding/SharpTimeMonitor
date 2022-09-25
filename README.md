@@ -1,4 +1,4 @@
-# TimeMonitorSharp
+# TimeMonitorInvisibleAdminConsole
 This program records the amount of time your PC spends in a wake state, how long it spends in a sleep state, the date of when it woke or slept, and a current session timer.
 
 It also records the time since the computer was last restarted.
