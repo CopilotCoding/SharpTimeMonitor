@@ -1,180 +1,157 @@
 namespace TimeMonitorSharp
 {
+    using Microsoft.Win32;
     using System;
-    using System.Text;
     using System.Diagnostics;
+    using System.Numerics;
+    using System.Text;
     using System.Threading.Tasks;
     using static System.Environment;
     using static System.IO.File;
     using static System.Threading.Tasks.Task;
-    using Microsoft.Win32;
 
-    class Program
+    internal class Program
     {
-        static Boolean running = true;
+        public static Stopwatch swTimer = new Stopwatch();
 
-        static Stopwatch swRunTime;
-        static Stopwatch swTimer;
-
-        static String drive;
-
-        static async Task Main()
+        private static async Task Main()
         {
-            await StartUp();
-            await Run();
-        }
-
-        static async Task StartUp()
-        {
-            await StartTimers();
-            await GetMainDrive();
-            await GetOSSuspendStatus();
-        }
-
-        static async Task StartTimers()
-        {
-            swRunTime = new Stopwatch();
-            swTimer = new Stopwatch();
-
-            swRunTime.Start();
             swTimer.Start();
 
-            await Delay(100);
+            await DetectPowerChange();
+
+            await GetCurrentSessionTimes();
         }
 
-        static async Task GetMainDrive()
-        {
-            drive = GetLogicalDrives()[0];
-            await Delay(100);
-        }
-
-        static async Task GetOSSuspendStatus()
+        static async Task DetectPowerChange()
         {
             SystemEvents.PowerModeChanged += new PowerModeChangedEventHandler(OnPowerChangeAsync);
-
-            await Delay(100);
+            await Delay(1000);
         }
 
-        static async void OnPowerChangeAsync(Object s, PowerModeChangedEventArgs e)
+        public static String GetElapsedTime(TimeSpan e)
+        {
+            String elapsed = "";
+            if (e.TotalMilliseconds < 1000)
+            {
+                elapsed = e.Milliseconds + " ms";
+                return elapsed;
+            }
+            if (e.TotalSeconds < 60 && e.TotalMilliseconds >= 1000)
+            {
+                elapsed = e.Seconds + " s     " + e.Milliseconds + " ms";
+                return elapsed;
+            }
+            if (e.TotalMinutes < 60 && e.TotalSeconds >= 60)
+            {
+                elapsed = e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
+                return elapsed;
+            }
+            if (e.TotalHours < 24 && e.TotalMinutes >= 60)
+            {
+                elapsed = e.Hours + " h     " + e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
+                return elapsed;
+            }
+            if (e.TotalDays < 7 && e.TotalHours >= 24)
+            {
+                elapsed = e.Days + " d     " + e.Hours + " h     " + e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
+                return elapsed;
+            }
+            if (e.TotalDays >= 7)
+            {
+                elapsed = (e.Days / 7) + " w     " + e.Days + " d     " + e.Hours + " h     " + e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
+                return elapsed;
+            }
+            if (e.TotalDays >= 365)
+            {
+                elapsed = (e.TotalDays / 365) + " y     " + (e.Days / 7) + " w     " + e.Days + " d     " + e.Hours + " h     " + e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
+                return elapsed;
+            }
+            return elapsed;
+        }
+
+        public static async void OnPowerChangeAsync(Object s, PowerModeChangedEventArgs e)
         {
             StringBuilder sbPower = new StringBuilder();
 
             if (e.Mode == PowerModes.Resume)
             {
-                /// If you wanted you could create some bat files for viewing the text files this program creates.
-                // Process.Start("ViewTheTextFile.bat");
+                sbPower.AppendLine($"Suspended for: {GetElapsedTime(swTimer.Elapsed)}");
+                sbPower.AppendLine($"At: {DateTime.Now}");
+                sbPower.AppendLine();
+                sbPower.AppendLine();
 
-                sbPower.AppendLine($"OS time suspended: {GetElapsedTime(swTimer.Elapsed)}");
-                sbPower.AppendLine();
-                sbPower.AppendLine($"OS resumed date: {DateTime.Now}");
-                sbPower.AppendLine();
-                sbPower.AppendLine();
-                sbPower.AppendLine();
+                await Delay(1000);
 
                 swTimer.Restart();
             }
 
             if (e.Mode == PowerModes.Suspend)
             {
-                sbPower.AppendLine($"OS session time: {GetElapsedTime(swTimer.Elapsed)}");
-                sbPower.AppendLine();
-                sbPower.AppendLine($"OS suspended date: {DateTime.Now}");
-                sbPower.AppendLine();
+                sbPower.AppendLine($"Resumed for: {GetElapsedTime(swTimer.Elapsed)}");
+                sbPower.AppendLine($"At: {DateTime.Now}");
                 sbPower.AppendLine();
                 sbPower.AppendLine();
+
+                await Delay(1000);
 
                 swTimer.Restart();
             }
 
-            String usageTextFile = $@"{drive}UsageTimesLog.txt";
-
-            AppendAllText(usageTextFile, sbPower.ToString());
+            AppendAllText($@"{GetLogicalDrives()[0]}UsageTimesLog.txt", sbPower.ToString());
 
             await Delay(1000);
         }
 
-        static async Task Run()
+        public static async Task GetCurrentSessionTimes()
         {
-            while (running)
+            while (true)
             {
-                await BuildTimeString();
+                StringBuilder sbTimer = new StringBuilder();
+
+                BigInteger ns = (BigInteger)TickCount * 1000000;
+                BigInteger ohnsu = (BigInteger)TickCount * 10000;
+                BigInteger ms = TickCount;
+                BigInteger s = (BigInteger)TickCount / 1000;
+                BigInteger min = (BigInteger)TickCount / 60000;
+                BigInteger h = (BigInteger)TickCount / 3600000;
+                BigInteger d = (BigInteger)TickCount / 86400000;
+                BigInteger w = (BigInteger)TickCount / 604800000;
+                BigInteger f = (BigInteger)TickCount / 1209600000;
+                BigInteger mon = (BigInteger)TickCount / 2629800000;
+                BigInteger y = (BigInteger)TickCount / 31557600000;
+
+                TimeSpan ts = new TimeSpan((Int64)((BigInteger)TickCount * 10000));
+
+                sbTimer.AppendLine("Current session:");
+                sbTimer.AppendLine();
+                sbTimer.AppendLine(GetElapsedTime(swTimer.Elapsed));
+                sbTimer.AppendLine();
+                sbTimer.AppendLine();
+                sbTimer.AppendLine("Time since last restart:");
+                sbTimer.AppendLine();
+                sbTimer.AppendLine(GetElapsedTime(ts));
+                sbTimer.AppendLine();
+                sbTimer.AppendLine(ns + "     nanoseconds");
+                sbTimer.AppendLine(ohnsu + "     100-nanosecond units");
+                sbTimer.AppendLine(ms + "     milliseconds");
+                sbTimer.AppendLine(s + "     seconds");
+                sbTimer.AppendLine(min + "     minutes");
+                sbTimer.AppendLine(h + "     hours");
+                sbTimer.AppendLine(d + "     days");
+                sbTimer.AppendLine(w + "     weeks");
+                sbTimer.AppendLine(f + "     fortnights");
+                sbTimer.AppendLine(mon + "     months");
+                sbTimer.AppendLine(y + "     years");
+                sbTimer.AppendLine();
+                sbTimer.AppendLine();
+
+                WriteAllText($@"{GetLogicalDrives()[0]}TimerElapsed.txt", sbTimer.ToString());
+
+                sbTimer.Clear();
+
+                await Delay(10000);
             }
-        }
-
-        static async Task BuildTimeString()
-        {
-            StringBuilder sbTimer = new StringBuilder();
-
-            sbTimer.AppendLine($"Current session: {GetElapsedTime(swTimer.Elapsed)}");
-            sbTimer.AppendLine();
-            sbTimer.AppendLine($"TimeMonitor run time: {GetElapsedTime(swRunTime.Elapsed)}");
-            sbTimer.AppendLine();
-
-            Int32 seconds = TickCount / 1000;
-            Int32 minutes = seconds / 60;
-            Int32 hours = minutes / 60;
-            Int32 days = hours / 24;
-            Int32 weeks = days / 7;
-
-            sbTimer.AppendLine($"OS time since last restart: in weeks: {weeks}, in days: {days}, in hours: {hours}, in minutes {minutes}.");
-            sbTimer.AppendLine();
-
-            String timerElapsedFile = $@"{drive}TimerElapsed.txt";
-
-            WriteAllText(timerElapsedFile, sbTimer.ToString());
-
-            sbTimer.Clear();
-
-            await Delay(10000);
-        }
-
-        static String GetElapsedTime(TimeSpan e)
-        {
-            String elapsed = "";
-
-            if (e.TotalMilliseconds < 1000)
-            {
-                elapsed = e.Milliseconds + " ms";
-                return elapsed;
-            }
-
-            if (e.TotalSeconds < 60 && e.TotalMilliseconds >= 1000)
-            {
-                elapsed = e.Seconds + " s     " + e.Milliseconds + " ms";
-                return elapsed;
-            }
-
-            if (e.TotalMinutes < 60 && e.TotalSeconds >= 60)
-            {
-                elapsed = e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
-                return elapsed;
-            }
-
-            if (e.TotalHours < 24 && e.TotalMinutes >= 60)
-            {
-                elapsed = e.Hours + " h     " + e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
-                return elapsed;
-            }
-
-            if (e.TotalDays < 73 && e.TotalHours >= 24)
-            {
-                elapsed = e.Days + " d     " + e.Hours + " h     " + e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
-                return elapsed;
-            }
-
-            if (e.TotalDays >= 7)
-            {
-                elapsed = (e.Days / 7) + " w     " + e.Days + " d     " + e.Hours + " h     " + e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
-                return elapsed;
-            }
-
-            if (e.TotalDays >= 365)
-            {
-                elapsed = (e.TotalDays / 365) + " y     " + (e.Days / 7) + " w     " + e.Days + " d     " + e.Hours + " h     " + e.Minutes + " m     " + e.Seconds + " s     " + e.Milliseconds + " ms";
-                return elapsed;
-            }
-
-            return elapsed;
         }
     }
 }
